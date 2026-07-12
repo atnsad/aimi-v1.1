@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>tp-21</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body { background: #050505; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; touch-action: none; cursor: crosshair; color: #fff; }
+        #game-container { width: 100vw; height: 100vh; position: relative; }
+        #countdown { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 150px; font-weight: 900; opacity: 0.2; }
+        #score-container { position: absolute; top: 20px; width: 100%; text-align: center; z-index: 10; pointer-events: none; }
+        #score { font-size: 48px; font-weight: bold; text-shadow: 0 0 10px rgba(255,255,255,0.5); display: none; }
+        .circle { position: absolute; border-radius: 50%; cursor: pointer; transition: transform 0.1s; border: 1px solid rgba(255,255,255,0.3); box-shadow: 0 0 15px currentColor; }
+        .circle-inner { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); border-radius: 50%; background: #000; }
+        #game-over { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; display: none; background: rgba(0,0,0,0.9); padding: 40px; border-radius: 20px; border: 1px solid #444; z-index: 100; }
+        h1 { color: #ff4757; margin-bottom: 10px; }
+        button { background: #fff; border: none; padding: 12px 30px; font-size: 20px; border-radius: 8px; cursor: pointer; font-weight: bold; margin: 10px; transition: 0.2s; }
+        button:hover { background: #ddd; transform: scale(1.05); }
+        #exit-btn { background: #ff4757; color: #fff; }
+        .miss-effect { position: absolute; width: 20px; height: 20px; border: 2px solid red; border-radius: 50%; transform: translate(-50%, -50%); animation: flash 0.3s ease-out forwards; pointer-events: none; }
+        @keyframes flash { to { width: 100px; height: 100px; opacity: 0; } }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="countdown">3</div>
+        <div id="score-container"><div id="score">0</div></div>
+        <div id="game-over">
+            <h1>شکست خوردی!</h1>
+            <p>امتیاز نهایی: <span id="final-score" style="font-size: 24px; color: #2ed573;">0</span></p>
+            <p id="death-reason" style="font-size: 14px; color: #aaa; margin-top: 10px;"></p>
+            <button id="restart-btn">تلاش مجدد</button><br>
+            <button id="exit-btn">خروج ✖️</button>
+        </div>
+    </div>
+
+    <script>
+        const container = document.getElementById('game-container');
+        const scoreEl = document.getElementById('score');
+        const gameOverEl = document.getElementById('game-over');
+        const finalScoreEl = document.getElementById('final-score');
+        const reasonEl = document.getElementById('death-reason');
+        
+        let score = 0;
+        let gameActive = false;
+        let activeCircles = new Set();
+        let spawnTimer = null;
+
+        function startGame() {
+            score = 0;
+            gameActive = true;
+            scoreEl.textContent = score;
+            scoreEl.style.display = 'block';
+            gameOverEl.style.display = 'none';
+            spawnLoop();
+        }
+
+        // جریمه کلیک اشتباه: اگر روی دایره کلیک نشود، باختی!
+        container.addEventListener('mousedown', (e) => {
+            if (!gameActive) return;
+            if (e.target.classList.contains('circle') || e.target.classList.contains('circle-inner')) return;
+            
+            showMissEffect(e.clientX, e.clientY);
+            gameOver("دقت کافی نداشتی (کلیک اشتباه)!");
+        });
+
+        function showMissEffect(x, y) {
+            const div = document.createElement('div');
+            div.className = 'miss-effect';
+            div.style.left = x + 'px';
+            div.style.top = y + 'px';
+            container.appendChild(div);
+            setTimeout(() => div.remove(), 300);
+        }
+
+        function getSpawnRate() {
+            // سرعت تولید دایره‌ها با افزایش امتیاز بیشتر می‌شود
+            return Math.max(10, 340 - (score * 5));
+        }
+
+        function spawnLoop() {
+            if (!gameActive) return;
+            createCircle();
+            spawnTimer = setTimeout(spawnLoop, getSpawnRate());
+        }
+
+        function createCircle() {
+            const diff = Math.min(score / 80, 0.92); 
+            const size = Math.max(15, (55 - (diff * 40)) + Math.random() * 15);
+            const duration = Math.max(350, (900 - (diff * 700)) + Math.random() * 100);
+            
+            const circle = document.createElement('div');
+            circle.className = 'circle';
+            const color = `hsl(${Math.random() * 360}, 80%, 60%)`;
+            circle.style.cssText = `
+                width: ${size}px; height: ${size}px;
+                left: ${Math.random() * (window.innerWidth - size)}px;
+                top: ${Math.random() * (window.innerHeight - size)}px;
+                background: ${color}; color: ${color};
+            `;
+
+            const inner = document.createElement('div');
+            inner.className = 'circle-inner';
+            circle.appendChild(inner);
+            container.appendChild(circle);
+
+            const circleData = { element: circle, startTime: Date.now(), duration, size };
+            activeCircles.add(circleData);
+
+            function animate() {
+                if (!gameActive || !activeCircles.has(circleData)) return;
+                const elapsed = Date.now() - circleData.startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                
+                inner.style.width = (size * progress) + 'px';
+                inner.style.height = (size * progress) + 'px';
+
+                if (progress >= 1) {
+                    gameOver("خیلی کند بودی!");
+                } else {
+                    requestAnimationFrame(animate);
+                }
+            }
+            requestAnimationFrame(animate);
+
+            circle.addEventListener('mousedown', (e) => {
+                e.stopPropagation();
+                if (!gameActive) return;
+                score++;
+                scoreEl.textContent = score;
+                activeCircles.delete(circleData);
+                circle.remove();
+            });
+        }
+
+        function gameOver(reason) {
+            if (!gameActive) return;
+            gameActive = false;
+            clearTimeout(spawnTimer);
+            reasonEl.textContent = reason;
+            finalScoreEl.textContent = score;
+            gameOverEl.style.display = 'block';
+            
+            activeCircles.forEach(c => c.element.remove());
+            activeCircles.clear();
+        }
+
+        document.getElementById('restart-btn').onclick = startGame;
+        document.getElementById('exit-btn').onclick = () => location.href = 'https://atnsad.github.io/aimi';
+
+        let count = 3;
+        const cInt = setInterval(() => {
+            count--;
+            if(count <= 0) {
+                clearInterval(cInt);
+                document.getElementById('countdown').style.display = 'none';
+                startGame();
+            } else {
+                document.getElementById('countdown').textContent = count;
+            }
+        }, 1000);
+    </script>
+</body>
+</html>

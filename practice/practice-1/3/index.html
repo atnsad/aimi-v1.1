@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>tp-3</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body { background: #000; overflow: hidden; font-family: 'Segoe UI'; touch-action: none; }
+        #game-container { width: 100vw; height: 100vh; position: relative; }
+        #countdown { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 120px; color: #fff; font-weight: bold; }
+        #score { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); font-size: 36px; color: #fff; font-weight: bold; display: none; }
+        .circle { position: absolute; border-radius: 50%; cursor: pointer; transition: transform 0.1s; }
+        .circle:hover { transform: scale(1.05); }
+        .circle-inner { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); border-radius: 50%; background: #000; }
+        #game-over { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; display: none; color: #fff; }
+        button { background: #fff; border: none; padding: 15px 40px; font-size: 24px; border-radius: 10px; cursor: pointer; font-weight: bold; margin-top: 15px; }
+        #exit-btn { background: #ff4757; color: #fff; }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="countdown">3</div>
+        <div id="score">0</div>
+        <div id="game-over">
+            <h1>بازی تمام شد!</h1>
+            <p>امتیاز: <span id="final-score">0</span></p>
+            <button id="restart-btn">بازی مجدد</button><br>
+            <button id="exit-btn">خروج ✖️</button>
+        </div>
+    </div>
+
+    <script>
+        const gameContainer = document.getElementById('game-container');
+        const scoreEl = document.getElementById('score');
+        const gameOverEl = document.getElementById('game-over');
+        const finalScoreEl = document.getElementById('final-score');
+        
+        let score = 0;
+        let gameActive = false;
+        let currentCircle = null;
+
+        function startGame() {
+            score = 0;
+            gameActive = true;
+            scoreEl.textContent = score;
+            scoreEl.style.display = 'block';
+            spawnCircle();
+        }
+
+        function getDifficulty() {
+            // سختی از 0 تا 1 مقیاس‌بندی می‌شود (هر 50 امتیاز یک مرحله سختی)
+            return Math.min(score / 50, 0.85); 
+        }
+
+        function spawnCircle() {
+            if (!gameActive) return;
+
+            const diff = getDifficulty();
+            const size = (60 - (diff * 30)) + Math.random() * 10; // دایره‌ها کوچک‌تر می‌شوند
+            const duration = (700 - (diff * 500)) + Math.random() * 100; // زمان کمتر برای کلیک
+            
+            const x = Math.random() * (window.innerWidth - size);
+            const y = Math.random() * (window.innerHeight - size);
+
+            const circleOuter = document.createElement('div');
+            circleOuter.className = 'circle';
+            circleOuter.style.width = size + 'px';
+            circleOuter.style.height = size + 'px';
+            circleOuter.style.left = x + 'px';
+            circleOuter.style.top = y + 'px';
+            circleOuter.style.background = `hsl(${Math.random() * 360}, 70%, 60%)`;
+
+            const circleInner = document.createElement('div');
+            circleInner.className = 'circle-inner';
+            
+            circleOuter.appendChild(circleInner);
+            gameContainer.appendChild(circleOuter);
+
+            currentCircle = { outer: circleOuter, inner: circleInner, clicked: false };
+
+            let startTime = Date.now();
+            function animate() {
+                if (!gameActive || currentCircle.clicked) return;
+                const progress = Math.min((Date.now() - startTime) / duration, 1);
+                circleInner.style.width = (size * progress) + 'px';
+                circleInner.style.height = (size * progress) + 'px';
+
+                if (progress >= 1) gameOver();
+                else requestAnimationFrame(animate);
+            }
+            animate();
+
+            circleOuter.addEventListener('click', () => {
+                if (currentCircle.clicked) return;
+                currentCircle.clicked = true;
+                score++;
+                scoreEl.textContent = score;
+                circleOuter.remove();
+                // تاخیر کمتر بین اسپاون‌ها
+                setTimeout(spawnCircle, 100 + Math.random() * 150);
+            });
+        }
+
+        function gameOver() {
+            gameActive = false;
+            finalScoreEl.textContent = score;
+            gameOverEl.style.display = 'block';
+            if(currentCircle) currentCircle.outer.remove();
+        }
+
+        document.getElementById('restart-btn').onclick = () => {
+            gameOverEl.style.display = 'none';
+            startGame();
+        };
+
+        document.getElementById('exit-btn').onclick = () => location.href = 'https://atnsad.github.io/aimi';
+
+        // Countdown
+        let count = 3;
+        const cInt = setInterval(() => {
+            count--;
+            if(count <= 0) {
+                clearInterval(cInt);
+                document.getElementById('countdown').style.display = 'none';
+                startGame();
+            } else {
+                document.getElementById('countdown').textContent = count;
+            }
+        }, 1000);
+    </script>
+</body>
+</html>

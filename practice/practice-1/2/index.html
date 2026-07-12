@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>tp-2</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background: #000;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            touch-action: none;
+        }
+
+        #game-container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+
+        #countdown {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 120px;
+            color: #fff;
+            font-weight: bold;
+            text-shadow: 0 0 20px rgba(255,255,255,0.5);
+        }
+
+        #score {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 36px;
+            color: #fff;
+            font-weight: bold;
+            display: none;
+        }
+
+        .circle {
+            position: absolute;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        .circle-outer {
+            transition: opacity 0.1s;
+        }
+
+        .circle-inner {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            border-radius: 50%;
+            background: #000;
+        }
+
+        #game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            display: none;
+            color: #fff;
+        }
+
+        #game-over h1 {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+
+        #game-over p {
+            font-size: 32px;
+            margin-bottom: 30px;
+        }
+
+        #restart-btn {
+            background: #fff;
+            color: #000;
+            border: none;
+            padding: 15px 40px;
+            font-size: 24px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+
+        #restart-btn:active {
+            transform: scale(0.95);
+        }
+
+        #exit-btn {
+            background: #ff4757;
+            color: #fff;
+            border: none;
+            padding: 15px 40px;
+            font-size: 24px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        #exit-btn:active {
+            transform: scale(0.95);
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="countdown">3</div>
+        <div id="score">0</div>
+        <div id="game-over">
+            <h1>بازی تمام شد!</h1>
+            <p>امتیاز: <span id="final-score">0</span></p>
+            <button id="restart-btn">بازی مجدد</button>
+            <br>
+            <button id="exit-btn">خروج ✖️</button>
+        </div>
+    </div>
+
+    <script>
+        const gameContainer = document.getElementById('game-container');
+        const countdownEl = document.getElementById('countdown');
+        const scoreEl = document.getElementById('score');
+        const gameOverEl = document.getElementById('game-over');
+        const finalScoreEl = document.getElementById('final-score');
+        const restartBtn = document.getElementById('restart-btn');
+        const exitBtn = document.getElementById('exit-btn');
+
+        let score = 0;
+        let gameActive = false;
+        let currentCircle = null;
+        let spawnTimeout = null;
+        let gameOverFlag = false;
+
+        const colors = ['#ff4757', '#ff6348', '#ffa502', '#fffa65', '#7bed9f', '#70a1ff', '#5f27cd', '#ee5a6f', '#ff6b81', '#fd79a8'];
+
+            function startCountdown() {
+                let count = 3;
+
+                countdownEl.style.display = "block";
+                countdownEl.textContent = count;
+
+                const interval = setInterval(() => {
+                    count--;
+
+                    if (count === 0) {
+                        clearInterval(interval);
+                        countdownEl.style.display = "none";
+                        startGame();
+                    } else {
+                        countdownEl.textContent = count;
+                    }
+                }, 1000);
+            }
+
+        function startGame() {
+            gameActive = true;
+            gameOverFlag = false;
+            score = 0;
+            scoreEl.textContent = score;
+            scoreEl.style.display = 'block';
+            spawnCircle();
+        }
+
+        function spawnCircle() {
+            if (!gameActive || gameOverFlag) return;
+
+            const size = 80 + Math.random() * 40;
+            const x = Math.random() * (window.innerWidth - size);
+            const y = Math.random() * (window.innerHeight - size);
+            const color = colors[Math.floor(Math.random() * colors.length)];
+            const duration = 1500 + Math.random() * 500;
+
+            const circleOuter = document.createElement('div');
+            circleOuter.className = 'circle circle-outer';
+            circleOuter.style.width = size + 'px';
+            circleOuter.style.height = size + 'px';
+            circleOuter.style.left = x + 'px';
+            circleOuter.style.top = y + 'px';
+            circleOuter.style.background = color;
+
+            const circleInner = document.createElement('div');
+            circleInner.className = 'circle-inner';
+            circleInner.style.width = '0px';
+            circleInner.style.height = '0px';
+
+            circleOuter.appendChild(circleInner);
+            gameContainer.appendChild(circleOuter);
+
+            currentCircle = { outer: circleOuter, inner: circleInner, clicked: false };
+
+            let startTime = Date.now();
+            let animationFrame;
+
+            function animate() {
+                if (!gameActive || currentCircle.clicked) return;
+
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                
+                const innerSize = size * progress;
+                circleInner.style.width = innerSize + 'px';
+                circleInner.style.height = innerSize + 'px';
+
+                if (progress >= 1) {
+                    gameOver();
+                } else {
+                    animationFrame = requestAnimationFrame(animate);
+                }
+            }
+
+            animate();
+
+            circleOuter.addEventListener('click', () => {
+                if (!currentCircle.clicked && gameActive) {
+                    currentCircle.clicked = true;
+                    score++;
+                    scoreEl.textContent = score;
+                    circleOuter.style.opacity = '0';
+                    setTimeout(() => {
+                        circleOuter.remove();
+                    }, 100);
+                    
+                    const nextDelay = 400 + Math.random() * 300;
+                    spawnTimeout = setTimeout(spawnCircle, nextDelay);
+                }
+            });
+        }
+
+        function gameOver() {
+            if (gameOverFlag) return;
+            
+            gameOverFlag = true;
+            gameActive = false;
+            scoreEl.style.display = 'none';
+            
+            if (currentCircle && currentCircle.outer) {
+                currentCircle.outer.remove();
+            }
+            
+            if (spawnTimeout) {
+                clearTimeout(spawnTimeout);
+            }
+
+            finalScoreEl.textContent = score;
+            gameOverEl.style.display = 'block';
+        }
+
+        restartBtn.addEventListener('click', () => {
+            gameOverEl.style.display = 'none';
+            const circles = document.querySelectorAll('.circle-outer');
+            circles.forEach(c => c.remove());
+            startCountdown();
+        });
+
+        exitBtn.addEventListener('click', () => {
+            window.location.href = 'https://atnsad.github.io/aimi';
+        });
+
+        startCountdown();
+    </script>
+</body>
+</html>
