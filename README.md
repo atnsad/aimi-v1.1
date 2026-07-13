@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🎯 AIMI
+# 🎯 AIMI V1.1
 ### Precision & Reflex Trainer
 
 > ارتقای سطح دقت و سرعت واکنش برای گیمرهای حرفه‌ای.
